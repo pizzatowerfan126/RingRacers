@@ -428,7 +428,7 @@ static void I_ReportSignal(int num, int coredumped)
 }
 
 #ifndef NEWSIGNALHANDLER
-FUNCNORETURN static ATTRNORETURN void signal_handler(INT32 num)
+static ATTRNORETURN void signal_handler(INT32 num)
 {
 	g_in_exiting_signal_handler = true;
 
@@ -447,10 +447,8 @@ FUNCNORETURN static ATTRNORETURN void signal_handler(INT32 num)
 	write_backtrace(num);
 #endif
 	I_ReportSignal(num, 0);
-	I_ShutdownSystem();
 	signal(num, SIG_DFL);               //default signal action
 	raise(num);
-	I_Quit();
 }
 #endif
 
@@ -1013,6 +1011,25 @@ void
 I_CursedWindowMovement (int xd, int yd)
 {
 	SDL_SetWindowPosition(window, window_x + xd, window_y + yd);
+}
+
+boolean I_HasOpenURL()
+{
+	#if (SDL_VERSION_ATLEAST(2, 0, 14))
+		return true;
+	#else
+		return false;
+	#endif
+}
+
+void I_OpenURL(const char *data)
+{
+	#if (SDL_VERSION_ATLEAST(2, 0, 14))
+		SDL_OpenURL(data);
+	#else
+		(void)data;
+		return;
+	#endif
 }
 
 //
@@ -1738,11 +1755,7 @@ void I_Error(const char *error, ...)
 		if (errorcount == 7)
 			SDL_Quit();
 		if (errorcount == 8)
-		{
-			M_SaveConfig(NULL);
-			G_DirtyGameData(); // done first in case an error is in G_SaveGameData
-			G_SaveGameData();
-		}
+			G_DirtyGameData();
 		if (errorcount > 20)
 		{
 			va_start(argptr, error);
@@ -1776,9 +1789,10 @@ void I_Error(const char *error, ...)
 	I_OutputMsg("\nI_Error(): %s\n", buffer);
 	// ---
 
-	M_SaveConfig(NULL); // save game config, cvars..
-	G_DirtyGameData(); // done first in case an error is in G_SaveGameData
-	G_SaveGameData(); // Tails 12-08-2002
+	// FUCK OFF, stop allocating memory to write entire gamedata & configs
+	// when the program needs to shut down ASAP and we already save
+	// these all the time! Just set the dirty bit and GET OUT!
+	G_DirtyGameData();
 
 	// Shutdown. Here might be other errors.
 

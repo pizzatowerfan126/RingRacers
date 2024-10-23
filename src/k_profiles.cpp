@@ -319,12 +319,24 @@ void PR_SaveProfiles(void)
 	std::vector<uint8_t> ubjson = json::to_ubjson(ng);
 
 	std::string realpath = fmt::format("{}/{}", srb2home, PROFILESFILE);
-	int random_number = rand();
-	std::string tmppath = fmt::format("{}_{}.tmp", realpath, random_number);
+	std::string bakpath = fmt::format("{}.bak", realpath);
+
+	if (fs::exists(realpath))
+	{
+		try
+		{
+			fs::rename(realpath, bakpath);
+		}
+		catch (const fs::filesystem_error& ex)
+		{
+			CONS_Alert(CONS_ERROR, "Failed to record profiles backup. Not attempting to save profiles. %s\n", ex.what());
+			return;
+		}
+	}
 
 	try
 	{
-		io::FileStream file {tmppath, io::FileStreamMode::kWrite};
+		io::FileStream file {realpath, io::FileStreamMode::kWrite};
 
 		io::write(static_cast<uint32_t>(0x52494E47), file, io::Endian::kBE); // "RING"
 		io::write(static_cast<uint32_t>(0x5052464C), file, io::Endian::kBE); // "PRFL"
@@ -334,16 +346,14 @@ void PR_SaveProfiles(void)
 		io::write(static_cast<uint8_t>(0), file); // reserved4
 		io::write_exact(file, tcb::as_bytes(tcb::make_span(ubjson)));
 		file.close();
-
-		fs::rename(tmppath, realpath);
 	}
 	catch (const std::exception& ex)
 	{
-		I_Error("Couldn't save profiles. Are you out of Disk space / playing in a protected folder?\n\nException: %s", ex.what());
+		I_Error("Couldn't save profiles. Are you out of Disk space / playing in a protected folder? Check directory for a ringprofiles.prf.bak if the profiles file is corrupt.\n\nException: %s", ex.what());
 	}
 	catch (...)
 	{
-		I_Error("Couldn't save profiles. Are you out of Disk space / playing in a protected folder?");
+		I_Error("Couldn't save profiles. Are you out of Disk space / playing in a protected folder? Check directory for a ringprofiles.prf.bak if the profiles file is corrupt.");
 	}
 }
 
@@ -554,7 +564,7 @@ static void PR_ApplyProfile_Appearance(profile_t *p, UINT8 playernum)
 
 static void PR_ApplyProfile_Settings(profile_t *p, UINT8 playernum)
 {
-	// toggles
+	// toggles -- be sure to also adjust M_ProfileEditApply
 	CV_StealthSetValue(&cv_kickstartaccel[playernum], p->kickstartaccel);
 	CV_StealthSetValue(&cv_autoroulette[playernum], p->autoroulette);
 	CV_StealthSetValue(&cv_litesteer[playernum], p->litesteer);
@@ -609,6 +619,21 @@ void PR_ApplyProfileLight(UINT8 profilenum, UINT8 playernum)
 	}
 
 	PR_ApplyProfile_Appearance(p, playernum);
+}
+
+void PR_ApplyProfileToggles(UINT8 profilenum, UINT8 playernum)
+{
+	profile_t *p = PR_GetProfile(profilenum);
+
+	// this CAN happen!!
+	if (p == NULL)
+	{
+		// no need to be as loud...
+		profilenum = 0; // make sure to set this so that the cvar is set properly.
+		p = PR_GetProfile(profilenum);
+	}
+
+	PR_ApplyProfile_Settings(p, playernum);
 }
 
 void PR_ApplyProfilePretend(UINT8 profilenum, UINT8 playernum)

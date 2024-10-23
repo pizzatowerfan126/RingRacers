@@ -24,6 +24,8 @@
 #include "g_state.h" // gamestate_t (for lua)
 #include "r_data.h" // patchalphastyle_t
 #include "k_boss.h" // spottype_t (for lua)
+#include "k_follower.h" // followermode_t (for lua)
+#include "music.h" // tune flags (for lua)
 
 #include "deh_tables.h"
 
@@ -367,6 +369,7 @@ const char *const STATE_LIST[] = { // array length left dynamic for sanity testi
 
 	"S_KART_LEFTOVER",
 	"S_KART_LEFTOVER_NOTIRES",
+	"S_KART_LEFTOVER_CUSTOM",
 
 	"S_KART_TIRE1",
 	"S_KART_TIRE2",
@@ -4963,6 +4966,11 @@ struct int_const_s const INT_CONST[] = {
 	{"BT_DRIFT",BT_DRIFT},
 	{"BT_BRAKE",BT_BRAKE},
 	{"BT_ATTACK",BT_ATTACK},
+	{"BT_LOOKBACK",BT_LOOKBACK},
+	{"BT_RESPAWN",BT_RESPAWN},
+	{"BT_VOTE",BT_VOTE},
+	{"BT_EBRAKEMASK",BT_EBRAKEMASK}, // Macro button
+	{"BT_SPINDASHMASK",BT_SPINDASHMASK}, // Macro button
 	{"BT_LUAA",BT_LUAA}, // Lua customizable
 	{"BT_LUAB",BT_LUAB}, // Lua customizable
 	{"BT_LUAC",BT_LUAC}, // Lua customizable
@@ -5150,6 +5158,20 @@ struct int_const_s const INT_CONST[] = {
 	{"PRECIPFX_THUNDER",PRECIPFX_THUNDER},
 	{"PRECIPFX_LIGHTNING",PRECIPFX_LIGHTNING},
 	{"PRECIPFX_WATERPARTICLES",PRECIPFX_WATERPARTICLES},
+	
+	// followermode_t
+	{"FOLLOWERMODE_FLOAT",FOLLOWERMODE_FLOAT},
+	{"FOLLOWERMODE_GROUND",FOLLOWERMODE_GROUND},
+
+	// tune flags
+	{"TN_INCLUSIVEFADE",TN_INCLUSIVEFADE},
+	{"TN_USEMAPVOLUME",TN_USEMAPVOLUME},
+	{"TN_SYNCMUSIC",TN_SYNCMUSIC},
+	{"TN_MUSICCRED",TN_MUSICCRED},
+	{"TN_VAPES",TN_VAPES},
+	{"TN_NIGHTCOREABLE",TN_NIGHTCOREABLE},
+	{"TN_CHANGEPITCH",TN_CHANGEPITCH},
+	{"TN_LOOPING",TN_LOOPING},
 
 	{NULL,0}
 };

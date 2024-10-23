@@ -2220,7 +2220,7 @@ static INT16 P_FindClosestTurningForAngle(player_t *player, INT32 targetAngle, I
 
 	// Slightly frumpy binary search for the ideal turning input.
 	// We do this instead of reversing K_GetKartTurnValue so that future handling changes are automatically accounted for.
-	
+
 	while (attempts++ < 20) // Practical calls of this function search maximum 10 times, this is solely for safety.
 	{
 		// These need to be treated as signed, or situations where boundaries straddle 0 are a mess.
@@ -2341,7 +2341,7 @@ static void P_UpdatePlayerAngle(player_t *player)
 		// Corrections via fake turn go through easing.
 		// That means undoing them takes the same amount of time as doing them.
 		// This can lead to oscillating death spiral states on a multi-tic correction, as we swing past the target angle.
-		// So before we go into death-spirals, if our predicton is _almost_ right... 
+		// So before we go into death-spirals, if our predicton is _almost_ right...
 		angle_t leniency_base;
 		if (G_CompatLevel(0x000A))
 		{
@@ -2352,6 +2352,14 @@ static void P_UpdatePlayerAngle(player_t *player)
 		{
 			leniency_base = 8 * ANG1 / 3;
 		}
+
+		// Gross. Take a look at sliptide starts properly for 2.4.
+		// Yell at Tyron!
+		if (!G_CompatLevel(0x000C))
+		{
+			leniency_base = 6 * ANG1 / 3;
+		}
+
 		angle_t leniency = leniency_base * min(player->cmd.latency, 6);
 		// Don't force another turning tic, just give them the desired angle!
 
@@ -2450,7 +2458,7 @@ void P_MovePlayer(player_t *player)
 	//////////////////////
 
 	P_UpdatePlayerAngle(player);
-	
+
 	ticruned++;
 	if (!(cmd->flags & TICCMD_RECEIVED))
 		ticmiss++;
@@ -3185,6 +3193,8 @@ boolean P_MoveChaseCamera(player_t *player, camera_t *thiscam, boolean resetcall
 	sonicloopcamvars_t *loop = &player->loop.camera;
 	tic_t loop_out = leveltime - loop->enter_tic;
 	tic_t loop_in = max(leveltime, loop->exit_tic) - loop->exit_tic;
+	boolean affected_by_loop = (loop_out <=
+		(loop->zoom_in_speed + loop->zoom_out_speed) && leveltime > introtime);
 
 	thiscam->old_x = thiscam->x;
 	thiscam->old_y = thiscam->y;
@@ -3398,8 +3408,9 @@ boolean P_MoveChaseCamera(player_t *player, camera_t *thiscam, boolean resetcall
 	}
 	else if (player->exiting) // SRB2Kart: Leave the camera behind while exiting, for dramatic effect!
 		camstill = true;
-	else if (lookback || lookbackdelay[num]) // SRB2kart - Camera flipper
+	else if ((lookback || lookbackdelay[num]) && !affected_by_loop)
 	{
+		// SRB2Kart -- Camera flip when looking backwards
 #define MAXLOOKBACKDELAY 2
 		camspeed = FRACUNIT;
 		if (lookback)
@@ -3613,6 +3624,14 @@ boolean P_MoveChaseCamera(player_t *player, camera_t *thiscam, boolean resetcall
 	{
 		thiscam->momx = x - thiscam->x;
 		thiscam->momy = y - thiscam->y;
+
+		if (lookback && lookbackdelay[num] && !affected_by_loop) {
+			// when looking back, camera's momentum
+			// should inherit the momentum of the player
+			// plus extra
+			thiscam->momx += 2*mo->momx;
+			thiscam->momy += 2*mo->momy;
+		}
 
 		fixed_t z_speed = Easing_Linear(
 			player->karthud[khud_aircam],
@@ -4255,7 +4274,7 @@ void P_PlayerThink(player_t *player)
 	}
 	else if (cmd->buttons & BT_ACCELERATE)
 	{
-		if (!player->exiting && !(player->oldcmd.buttons & BT_ACCELERATE))
+		if (!player->exiting && !(player->oldcmd.buttons & BT_ACCELERATE) && ((cmd->buttons & BT_SPINDASHMASK) != BT_SPINDASHMASK) && player->trickpanel != TRICKSTATE_READY)
 		{
 			player->kickstartaccel = 0;
 		}
@@ -4550,7 +4569,7 @@ void P_PlayerThink(player_t *player)
 	{
 		player->stairjank--;
 	}
-	
+
 	// Random skin / "ironman"
 	{
 		UINT32 skinflags = (demo.playback)

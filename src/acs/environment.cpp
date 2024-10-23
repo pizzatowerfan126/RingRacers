@@ -46,6 +46,9 @@ Environment::Environment()
 	// Not that we're adding any modules to it, though. :p
 	global->active = true;
 
+	// Set a branch limit (same as ZDoom's instruction limit)
+	branchLimit = 2000000;
+
 	// Add the data & function pointers.
 
 	// Starting with raw ACS0 codes. I'm using this classic-style
@@ -85,7 +88,7 @@ Environment::Environment()
 	addCodeDataACS0( 95, {"",        2, addCallFunc(CallFunc_AmbientSound)});
 
 	addCodeDataACS0( 97, {"",        4, addCallFunc(CallFunc_SetLineTexture)});
-
+	addCodeDataACS0( 98, {"",        2, addCallFunc(CallFunc_SetLineBlocking)});
 	addCodeDataACS0( 99, {"",        7, addCallFunc(CallFunc_SetLineSpecial)});
 	addCodeDataACS0(100, {"",        3, addCallFunc(CallFunc_ThingSound)});
 	addCodeDataACS0(101, {"",        0, addCallFunc(CallFunc_EndPrintBold)});
@@ -404,4 +407,43 @@ ACSVM::Word Environment::callSpecImpl
 
 	P_ProcessSpecial(activator, spec, args, stringargs);
 	return 1;
+}
+
+void Environment::printKill(ACSVM::Thread *thread, ACSVM::Word type, ACSVM::Word data)
+{
+	std::string scriptName;
+
+	ACSVM::String *scriptNamePtr = (thread->script != nullptr) ? (thread->script->name.s) : nullptr;
+	if (scriptNamePtr && scriptNamePtr->len)
+		scriptName = std::string(scriptNamePtr->str);
+	else
+		scriptName = std::to_string((int)thread->script->name.i);
+
+	ACSVM::KillType killType = static_cast<ACSVM::KillType>(type);
+
+	if (killType == ACSVM::KillType::BranchLimit)
+	{
+		CONS_Alert(CONS_ERROR, "Terminated runaway script %s\n", scriptName.c_str());
+		return;
+	}
+	else if (killType == ACSVM::KillType::UnknownCode)
+	{
+		CONS_Alert(CONS_ERROR, "ACSVM ERROR: Unknown opcode %d in script %s\n", data, scriptName.c_str());
+	}
+	else if (killType == ACSVM::KillType::UnknownFunc)
+	{
+		CONS_Alert(CONS_ERROR, "ACSVM ERROR: Unknown function %d in script %s\n", data, scriptName.c_str());
+	}
+	else if (killType == ACSVM::KillType::OutOfBounds)
+	{
+		CONS_Alert(CONS_ERROR, "ACSVM ERROR: Jumped to out of bounds location %s in script %s\n",
+			sizeu1(thread->codePtr - thread->module->codeV.data() - 1), scriptName.c_str());
+	}
+	else
+	{
+		CONS_Alert(CONS_ERROR, "ACSVM ERROR: Kill %u:%d at %s in script %s\n",
+			type, data, sizeu1(thread->codePtr - thread->module->codeV.data() - 1), scriptName.c_str());
+	}
+
+	CONS_Printf("Script terminated.\n");
 }
