@@ -54,7 +54,7 @@ jobs:
 
           mkdir assets/out
           pushd assets/out
-          unzip $builddir/SRB2-v2213-Full.zip
+          unzip $builddir/Dr.Robotnik.s-Ring-Racers-v2.3-Assets.zip
           popd
 
           mkdir build
